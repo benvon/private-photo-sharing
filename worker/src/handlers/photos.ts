@@ -14,7 +14,8 @@ export const handlePhotos = {
     try {
       const token = authHeader.replace('Bearer ', '');
       const { userId } = await verifyToken(token);
-      const { albumId } = request.params;
+      const url = new URL(request.url);
+      const albumId = url.pathname.split('/').pop();
 
       // Verify access
       const hasAccess = await env.DB.prepare(`
@@ -34,8 +35,16 @@ export const handlePhotos = {
         'SELECT * FROM photos WHERE album_id = ? ORDER BY uploaded_at DESC'
       ).bind(albumId).all();
 
+      interface Photo {
+        id: string;
+        album_id: string;
+        filename: string;
+        r2_key: string;
+        uploaded_at: string;
+      }
+
       // Generate signed URLs for each photo
-      const photosWithUrls = await Promise.all(photos.results.map(async (photo) => {
+      const photosWithUrls = await Promise.all((photos.results as Photo[]).map(async (photo) => {
         const url = await env.PHOTOS.get(photo.r2_key).then(obj => obj.url);
         return { ...photo, url };
       }));
